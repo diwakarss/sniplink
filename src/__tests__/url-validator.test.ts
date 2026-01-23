@@ -1,4 +1,4 @@
-import { validateUrl, sanitizeUrl } from '../utils/url-validator';
+import { validateUrl, sanitizeUrl, isBlockedDomain } from '../utils/url-validator';
 
 describe('validateUrl', () => {
   describe('valid URLs', () => {
@@ -68,6 +68,130 @@ describe('validateUrl', () => {
       const result = validateUrl('data:text/html,<script>');
       expect(result.valid).toBe(false);
       expect(result.error).toContain('HTTP');
+    });
+  });
+
+  describe('blocked domains', () => {
+    test('rejects bit.ly (URL shortener)', () => {
+      const result = validateUrl('https://bit.ly/abc123');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('security reasons');
+    });
+
+    test('rejects tinyurl.com (URL shortener)', () => {
+      const result = validateUrl('https://tinyurl.com/abc123');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('security reasons');
+    });
+
+    test('rejects goo.gl (URL shortener)', () => {
+      const result = validateUrl('https://goo.gl/abc123');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('security reasons');
+    });
+
+    test('rejects www.bit.ly (subdomain of blocked)', () => {
+      const result = validateUrl('https://www.bit.ly/abc123');
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain('security reasons');
+    });
+
+    test('allows example.com (not blocked)', () => {
+      const result = validateUrl('https://example.com');
+      expect(result.valid).toBe(true);
+      expect(result.error).toBeUndefined();
+    });
+  });
+});
+
+describe('isBlockedDomain', () => {
+  describe('exact domain matches', () => {
+    test('blocks exact match: bit.ly', () => {
+      expect(isBlockedDomain('https://bit.ly/abc123')).toBe(true);
+    });
+
+    test('blocks exact match: tinyurl.com', () => {
+      expect(isBlockedDomain('https://tinyurl.com/abc123')).toBe(true);
+    });
+
+    test('blocks exact match: t.co', () => {
+      expect(isBlockedDomain('https://t.co/abc123')).toBe(true);
+    });
+
+    test('blocks exact match: goo.gl', () => {
+      expect(isBlockedDomain('http://goo.gl/abc123')).toBe(true);
+    });
+  });
+
+  describe('subdomain matching', () => {
+    test('blocks subdomain: www.bit.ly', () => {
+      expect(isBlockedDomain('https://www.bit.ly/abc123')).toBe(true);
+    });
+
+    test('blocks subdomain: api.bit.ly', () => {
+      expect(isBlockedDomain('https://api.bit.ly/v4/shorten')).toBe(true);
+    });
+
+    test('blocks subdomain: subdomain.tinyurl.com', () => {
+      expect(isBlockedDomain('https://subdomain.tinyurl.com/page')).toBe(true);
+    });
+
+    test('does NOT block partial match: notbit.ly', () => {
+      expect(isBlockedDomain('https://notbit.ly/page')).toBe(false);
+    });
+
+    test('does NOT block partial match: bit.ly.example.com (different domain)', () => {
+      expect(isBlockedDomain('https://bit.ly.example.com')).toBe(false);
+    });
+  });
+
+  describe('case insensitivity', () => {
+    test('blocks uppercase: BIT.LY', () => {
+      expect(isBlockedDomain('https://BIT.LY/abc123')).toBe(true);
+    });
+
+    test('blocks mixed case: Bit.Ly', () => {
+      expect(isBlockedDomain('https://Bit.Ly/abc123')).toBe(true);
+    });
+
+    test('blocks uppercase subdomain: WWW.BIT.LY', () => {
+      expect(isBlockedDomain('https://WWW.BIT.LY/abc123')).toBe(true);
+    });
+
+    test('blocks mixed case subdomain: Www.TinyUrl.Com', () => {
+      expect(isBlockedDomain('https://Www.TinyUrl.Com/abc123')).toBe(true);
+    });
+  });
+
+  describe('malformed URLs', () => {
+    test('returns false for invalid URL (lets validateUrl handle it)', () => {
+      expect(isBlockedDomain('not-a-url')).toBe(false);
+    });
+
+    test('returns false for empty string', () => {
+      expect(isBlockedDomain('')).toBe(false);
+    });
+
+    test('returns false for malformed protocol', () => {
+      expect(isBlockedDomain('javascript:alert(1)')).toBe(false);
+    });
+  });
+
+  describe('allowed domains', () => {
+    test('allows example.com', () => {
+      expect(isBlockedDomain('https://example.com')).toBe(false);
+    });
+
+    test('allows google.com', () => {
+      expect(isBlockedDomain('https://google.com/search')).toBe(false);
+    });
+
+    test('allows github.com', () => {
+      expect(isBlockedDomain('https://github.com/user/repo')).toBe(false);
+    });
+
+    test('allows localhost', () => {
+      expect(isBlockedDomain('http://localhost:3000')).toBe(false);
     });
   });
 });

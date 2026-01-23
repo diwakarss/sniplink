@@ -4,7 +4,7 @@
  * Centralized export point for all utility modules
  */
 
-export { validateUrl, sanitizeUrl } from './url-validator';
+export { validateUrl, sanitizeUrl, isBlockedDomain } from './url-validator';
 export { generateShortCode, isCodeUnique, generateUniqueShortCode } from './short-code';
 export {
   hashPassword,

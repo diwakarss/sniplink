@@ -7,6 +7,7 @@ interface Config {
   port: number;
   databasePath: string;
   jwtSecret: string;
+  jwtExpiresIn: string;
   nodeEnv: string;
 }
 
@@ -25,6 +26,7 @@ function validateConfig(): Config {
     port: parseInt(process.env.PORT || '3000', 10),
     databasePath: process.env.DATABASE_PATH || './data/urlshortener.db',
     jwtSecret,
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '24h',
     nodeEnv,
   };
 }

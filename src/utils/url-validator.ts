@@ -4,6 +4,7 @@
  * Provides secure URL validation and XSS sanitization for URL shortening service.
  * Security features:
  * - Protocol whitelist (HTTP/HTTPS only)
+ * - Domain blocklist (URL shorteners, phishing domains)
  * - XSS character encoding
  * - Malformed URL detection
  */
@@ -15,6 +16,32 @@ export interface ValidationResult {
   valid: boolean;
   error?: string;
 }
+
+/**
+ * Blocked domains list
+ *
+ * Prevents shortening of:
+ * - Other URL shortening services (to avoid redirect chains)
+ * - Known phishing domains
+ * - Malicious sites
+ *
+ * Note: Matches subdomains (e.g., "bit.ly" blocks "www.bit.ly")
+ */
+const BLOCKED_DOMAINS = [
+  // URL shortening services
+  'bit.ly',
+  'tinyurl.com',
+  'goo.gl',
+  't.co',
+  'ow.ly',
+  'is.gd',
+  'buff.ly',
+  'adf.ly',
+  'short.io',
+  'rebrand.ly',
+  // Add known phishing domains here
+  // (In production, this would be a dynamic list from threat intelligence feeds)
+];
 
 /**
  * Validate URL format and security
@@ -56,7 +83,53 @@ export function validateUrl(url: string): ValidationResult {
     };
   }
 
+  // Check domain blocklist
+  if (isBlockedDomain(url)) {
+    return {
+      valid: false,
+      error: 'This domain is not allowed for security reasons'
+    };
+  }
+
   return { valid: true };
+}
+
+/**
+ * Check if a URL's domain is on the blocklist
+ *
+ * Matches both exact domains and subdomains.
+ * Examples:
+ * - "bit.ly" blocks "bit.ly", "www.bit.ly", "api.bit.ly"
+ * - Does NOT block "notbit.ly" (different domain)
+ *
+ * @param url - URL string to check
+ * @returns True if domain is blocked, false otherwise
+ */
+export function isBlockedDomain(url: string): boolean {
+  try {
+    const parsedUrl = new URL(url);
+    const hostname = parsedUrl.hostname.toLowerCase();
+
+    // Check if hostname matches or is a subdomain of blocked domain
+    for (const blockedDomain of BLOCKED_DOMAINS) {
+      const normalized = blockedDomain.toLowerCase();
+
+      // Exact match
+      if (hostname === normalized) {
+        return true;
+      }
+
+      // Subdomain match (e.g., "www.bit.ly" matches "bit.ly")
+      if (hostname.endsWith('.' + normalized)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch {
+    // If URL is malformed, let validateUrl handle it
+    return false;
+  }
 }
 
 /**

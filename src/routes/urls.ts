@@ -9,6 +9,7 @@ import { randomUUID } from 'crypto';
 import { validateUrl, sanitizeUrl, generateUniqueShortCode } from '../utils';
 import { getDb } from '../db';
 import { config } from '../config';
+import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
 
@@ -16,6 +17,10 @@ const router = Router();
  * POST /api/urls
  *
  * Create a shortened URL
+ *
+ * Authentication: Optional (uses optionalAuth middleware)
+ * - If authenticated: URL is linked to user (enables ANLZ-03)
+ * - If anonymous: URL has no user_id (backward compatible)
  *
  * Request body:
  * {
@@ -30,7 +35,7 @@ const router = Router();
  *   "statsToken": "uuid-for-anonymous-stats"
  * }
  */
-router.post('/', (req: Request, res: Response) => {
+router.post('/', optionalAuth, (req: Request, res: Response) => {
   try {
     // Extract URL from request body
     const { url } = req.body;
@@ -58,14 +63,17 @@ router.post('/', (req: Request, res: Response) => {
     const id = randomUUID();
     const statsToken = randomUUID();
 
+    // Get user_id if authenticated (ANLZ-03: link URL to user)
+    const userId = req.user?.userId || null;
+
     // Insert into database using parameterized query (SEC-05)
     const db = getDb();
     const stmt = db.prepare(`
-      INSERT INTO urls (id, short_code, original_url, stats_token, created_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
+      INSERT INTO urls (id, short_code, original_url, user_id, stats_token, created_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
     `);
 
-    stmt.run(id, shortCode, sanitizedUrl, statsToken);
+    stmt.run(id, shortCode, sanitizedUrl, userId, statsToken);
 
     // Build short URL
     const protocol = req.protocol;

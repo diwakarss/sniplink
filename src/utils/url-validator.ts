@@ -81,12 +81,13 @@ export function sanitizeUrl(url: string): string {
   }
 
   // Replace dangerous characters
+  // IMPORTANT: & must be replaced first to avoid double-encoding
   const dangerous = {
+    '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
-    "'": '&#x27;',
-    '&': '&amp;'
+    "'": '&#x27;'
   };
 
   let sanitized = decoded;

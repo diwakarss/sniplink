@@ -1,5 +1,5 @@
 import { createContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import { login as apiLogin, logout as apiLogout, setToken, getToken } from '@/lib/api';
+import { login as apiLogin, logout as apiLogout, getToken } from '@/lib/api';
 import type { User } from '@/types';
 
 interface AuthContextType {

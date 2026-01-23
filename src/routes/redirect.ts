@@ -76,9 +76,11 @@ router.get('/:code', (req: Request, res: Response) => {
     // Extract IP address and User-Agent
     try {
       const clickId = randomUUID();
-      const ipAddress = req.ip || (Array.isArray(req.headers['x-forwarded-for'])
-        ? req.headers['x-forwarded-for'][0]
-        : req.headers['x-forwarded-for']?.split(',')[0]) || null;
+      // Check X-Forwarded-For first (for proxied requests), then fall back to req.ip
+      const forwardedFor = req.headers['x-forwarded-for'];
+      const ipAddress = (Array.isArray(forwardedFor)
+        ? forwardedFor[0]
+        : forwardedFor?.split(',')[0]) || req.ip || null;
       const userAgent = req.headers['user-agent'] || null;
 
       const clickStmt = db.prepare(`

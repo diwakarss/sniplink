@@ -196,4 +196,76 @@ router.patch('/users/:id/ban', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * List Users Endpoint
+ *
+ * GET /api/admin/users
+ *
+ * Returns a paginated list of all users (excluding password_hash for security).
+ *
+ * Query parameters:
+ * - page: Page number (default 1, minimum 1)
+ * - limit: Items per page (default 20, max 100, minimum 1)
+ *
+ * Response:
+ * {
+ *   "users": [{ id, email, isAdmin, isBanned, createdAt, updatedAt }],
+ *   "pagination": { page, limit, total, totalPages }
+ * }
+ *
+ * Access: Admin users only
+ */
+router.get('/users', (req: Request, res: Response) => {
+  try {
+    const db = getDb();
+
+    // Parse and validate pagination parameters
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+    const offset = (page - 1) * limit;
+
+    // Get total count
+    const countResult = db.prepare('SELECT COUNT(*) as total FROM users').get() as { total: number };
+    const total = countResult.total;
+
+    // Get paginated users (exclude password_hash for security)
+    const users = db.prepare(`
+      SELECT id, email, is_admin, is_banned, created_at, updated_at
+      FROM users
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `).all(limit, offset) as Array<{
+      id: string;
+      email: string;
+      is_admin: number;
+      is_banned: number;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    // Format response with camelCase
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      email: user.email,
+      isAdmin: Boolean(user.is_admin),
+      isBanned: Boolean(user.is_banned),
+      createdAt: user.created_at,
+      updatedAt: user.updated_at
+    }));
+
+    res.json({
+      users: formattedUsers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error listing users:', error);
+    res.status(500).json({ error: 'Failed to list users' });
+  }
+});
+
 export { router as adminRouter };

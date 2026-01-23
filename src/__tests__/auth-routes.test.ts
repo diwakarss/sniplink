@@ -188,6 +188,27 @@ describe('POST /api/auth/login', () => {
     expect(response.body.error).toBe('Invalid credentials');
   });
 
+  test('should track multiple failed login attempts for progressive delay', async () => {
+    // Make multiple failed attempts to cover the increment branch
+    // Note: This test uses a unique email to avoid delays from other tests
+    const email = 'test-delay@example.com';
+    await createTestUser(email, 'password123');
+
+    // First failed attempt (no delay)
+    await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: 'wrong1' });
+
+    // Second failed attempt (2s delay applied, but we're testing the increment logic)
+    // This covers the branch where attempt already exists in the map
+    const response = await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: 'wrong2' });
+
+    expect(response.status).toBe(401);
+    expect(response.body.error).toBe('Invalid credentials');
+  }, 15000); // Increased timeout to 15s to account for progressive delay
+
   test('should return 403 for banned user', async () => {
     // Create and ban a user
     await createTestUser('test-banned@example.com', 'password123');

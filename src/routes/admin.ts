@@ -56,4 +56,46 @@ router.get('/stats', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Disable URL Endpoint
+ *
+ * PATCH /api/admin/urls/:id/disable
+ *
+ * Disables a URL so that redirects stop working.
+ * Disabled URLs return 410 Gone on redirect attempt.
+ *
+ * Access: Admin users only
+ */
+router.patch('/urls/:id/disable', (req: Request, res: Response) => {
+  try {
+    const urlId = req.params.id;
+    const db = getDb();
+
+    // Check if URL exists and get current status
+    const url = db.prepare(`
+      SELECT id, is_disabled FROM urls WHERE id = ?
+    `).get(urlId) as { id: string; is_disabled: number } | undefined;
+
+    if (!url) {
+      res.status(404).json({ error: 'URL not found' });
+      return;
+    }
+
+    if (url.is_disabled === 1) {
+      res.status(400).json({ error: 'URL is already disabled' });
+      return;
+    }
+
+    // Disable the URL
+    db.prepare(`
+      UPDATE urls SET is_disabled = 1 WHERE id = ?
+    `).run(urlId);
+
+    res.json({ message: 'URL disabled successfully', urlId });
+  } catch (error) {
+    console.error('Error disabling URL:', error);
+    res.status(500).json({ error: 'Failed to disable URL' });
+  }
+});
+
 export { router as adminRouter };

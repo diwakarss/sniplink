@@ -3,7 +3,8 @@ import { Outlet, NavLink } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Link2, Users } from 'lucide-react';
+import { LayoutDashboard, Link2, Users, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export function MainLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -13,24 +14,32 @@ export function MainLayout() {
       {/* Sidebar - Desktop */}
       <Sidebar />
 
-      {/* Mobile sidebar overlay */}
+      {/* Mobile sidebar overlay - z-50 to be above header */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          className="fixed inset-0 z-50 bg-black/50 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar - z-[60] to be above overlay */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 w-64 transform bg-card border-r transition-transform duration-200 ease-in-out md:hidden',
+          'fixed inset-y-0 left-0 z-[60] w-64 transform bg-card border-r transition-transform duration-200 ease-in-out md:hidden',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center h-16 px-6 border-b">
+          <div className="flex items-center justify-between h-16 px-6 border-b">
             <span className="text-lg font-semibold">URL Shortener</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
           <nav className="flex-1 px-3 py-4 space-y-1">
             {/* Mobile navigation links - using NavLink for consistency */}

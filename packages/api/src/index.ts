@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { config } from './config';
 import { initDb } from './db';
 import { healthRouter } from './routes/health';
@@ -11,6 +12,10 @@ import { redirectRouter } from './routes/redirect';
 const app = express();
 
 // Middleware
+app.use(cors({
+  origin: ['http://localhost:5173'], // Vite dev server
+  credentials: true
+}));
 app.use(express.json());
 
 // Error handling for malformed JSON

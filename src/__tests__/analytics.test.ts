@@ -16,13 +16,14 @@ beforeAll(() => {
   initDb();
 });
 
-// Clean up test data after all tests
-afterAll(() => {
+// Clean up test data after each test for isolation
+afterEach(() => {
   const db = getDb();
-  db.exec('DELETE FROM password_reset_tokens');
-  db.exec("DELETE FROM users WHERE email LIKE 'test-analytics-%'");
+  // Delete in order respecting foreign key constraints
   db.prepare('DELETE FROM clicks WHERE url_id IN (SELECT id FROM urls WHERE original_url LIKE ?)').run('https://analytics-test.example.com%');
   db.prepare('DELETE FROM urls WHERE original_url LIKE ?').run('https://analytics-test.example.com%');
+  db.prepare('DELETE FROM password_reset_tokens WHERE user_id IN (SELECT id FROM users WHERE email LIKE ?)').run('test-analytics-%');
+  db.prepare('DELETE FROM users WHERE email LIKE ?').run('test-analytics-%');
 });
 
 /**

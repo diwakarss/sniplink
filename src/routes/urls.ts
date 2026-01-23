@@ -10,6 +10,7 @@ import { validateUrl, sanitizeUrl, generateUniqueShortCode } from '../utils';
 import { getDb } from '../db';
 import { config } from '../config';
 import { optionalAuth } from '../middleware/auth';
+import { ipRateLimiter, userRateLimiter } from '../middleware/rate-limit';
 
 const router = Router();
 
@@ -21,6 +22,10 @@ const router = Router();
  * Authentication: Optional (uses optionalAuth middleware)
  * - If authenticated: URL is linked to user (enables ANLZ-03)
  * - If anonymous: URL has no user_id (backward compatible)
+ *
+ * Rate Limiting:
+ * - Anonymous (IP-based): 10 requests per minute
+ * - Authenticated (user-based): 50 requests per hour
  *
  * Request body:
  * {
@@ -35,7 +40,7 @@ const router = Router();
  *   "statsToken": "uuid-for-anonymous-stats"
  * }
  */
-router.post('/', optionalAuth, (req: Request, res: Response) => {
+router.post('/', optionalAuth, ipRateLimiter, userRateLimiter, (req: Request, res: Response) => {
   try {
     // Extract URL from request body
     const { url } = req.body;

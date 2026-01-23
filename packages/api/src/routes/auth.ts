@@ -220,13 +220,22 @@ router.post('/login', async (req: Request, res: Response) => {
     // Clear failed attempts on successful login
     clearFailedAttempts(email.toLowerCase());
 
-    // Generate JWT token
-    const token = generateToken({ userId: user.id, email: user.email });
+    // Generate JWT token with admin status
+    const token = generateToken({
+      userId: user.id,
+      email: user.email,
+      isAdmin: !!user.is_admin
+    });
 
-    // Return success response
+    // Return success response with user info including isAdmin flag
     res.status(200).json({
       token,
-      expiresIn: '24h'
+      expiresIn: '24h',
+      user: {
+        id: user.id,
+        email: user.email,
+        isAdmin: !!user.is_admin
+      }
     });
   } catch (error) {
     console.error('Login failed:', error);

@@ -50,6 +50,7 @@ export interface AuthRequest {
 export interface JwtPayload {
   userId: string;
   email: string;
+  isAdmin?: boolean;
   iat?: number;
   exp?: number;
 }

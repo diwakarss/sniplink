@@ -17,7 +17,7 @@ export function MainLayout() {
       {/* Mobile sidebar overlay - z-50 to be above header */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 md:hidden"
+          className="fixed inset-0 z-50 bg-black/80 md:hidden"
           onClick={() => setMobileMenuOpen(false)}
         />
       )}
@@ -93,8 +93,8 @@ export function MainLayout() {
         </div>
       </aside>
 
-      {/* Main content area */}
-      <div className="md:pl-64">
+      {/* Main content area - z-0 establishes stacking context below overlay */}
+      <div className="md:pl-64 relative z-0">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
         <main className="p-4 md:p-6">
           <Outlet />

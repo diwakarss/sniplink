@@ -98,4 +98,102 @@ router.patch('/urls/:id/disable', (req: Request, res: Response) => {
   }
 });
 
+/**
+ * Delete URL Endpoint
+ *
+ * DELETE /api/admin/urls/:id
+ *
+ * Permanently deletes a URL and all its associated click analytics.
+ * Uses CASCADE delete for clicks (defined in schema).
+ *
+ * Access: Admin users only
+ */
+router.delete('/urls/:id', (req: Request, res: Response) => {
+  try {
+    const urlId = req.params.id;
+    const db = getDb();
+
+    // Check if URL exists
+    const url = db.prepare(`
+      SELECT id FROM urls WHERE id = ?
+    `).get(urlId) as { id: string } | undefined;
+
+    if (!url) {
+      res.status(404).json({ error: 'URL not found' });
+      return;
+    }
+
+    // Delete the URL (clicks cascade-deleted via schema)
+    db.prepare(`
+      DELETE FROM urls WHERE id = ?
+    `).run(urlId);
+
+    res.json({ message: 'URL and associated analytics permanently deleted', urlId });
+  } catch (error) {
+    console.error('Error deleting URL:', error);
+    res.status(500).json({ error: 'Failed to delete URL' });
+  }
+});
+
+/**
+ * User Ban Endpoint
+ *
+ * PATCH /api/admin/users/:id/ban
+ *
+ * Ban a user account, preventing them from logging in.
+ *
+ * Path params:
+ * - id: User ID to ban
+ *
+ * Response:
+ * - 200: { message: "User banned successfully", userId: string, email: string }
+ * - 400: { error: "User is already banned" }
+ * - 403: { error: "Cannot ban admin users" }
+ * - 404: { error: "User not found" }
+ *
+ * Access: Admin users only
+ */
+router.patch('/users/:id/ban', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const db = getDb();
+
+    // Check if user exists and get their current status
+    const user = db.prepare(
+      'SELECT id, email, is_banned, is_admin FROM users WHERE id = ?'
+    ).get(id) as { id: string; email: string; is_banned: number; is_admin: number } | undefined;
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Prevent banning admin users
+    if (user.is_admin) {
+      res.status(403).json({ error: 'Cannot ban admin users' });
+      return;
+    }
+
+    // Check if already banned
+    if (user.is_banned) {
+      res.status(400).json({ error: 'User is already banned' });
+      return;
+    }
+
+    // Ban the user
+    db.prepare(
+      "UPDATE users SET is_banned = 1, updated_at = datetime('now') WHERE id = ?"
+    ).run(id);
+
+    res.json({
+      message: 'User banned successfully',
+      userId: user.id,
+      email: user.email
+    });
+  } catch (error) {
+    console.error('Error banning user:', error);
+    res.status(500).json({ error: 'Failed to ban user' });
+  }
+});
+
 export { router as adminRouter };

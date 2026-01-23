@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { getDb } from '../db';
+import { verifyToken } from '../utils/auth';
 
 const router = Router();
 
@@ -104,6 +105,17 @@ router.get('/urls/:shortCode/stats', (req, res) => {
     const { shortCode } = req.params;
     const statsToken = req.query.statsToken as string | undefined;
 
+    // Optionally parse JWT if Authorization header is present
+    let userId: string | undefined;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      if (payload) {
+        userId = payload.userId;
+      }
+    }
+
     // Fetch URL
     const url = db.prepare(`
       SELECT id, user_id, stats_token
@@ -117,7 +129,7 @@ router.get('/urls/:shortCode/stats', (req, res) => {
     }
 
     // Check access control
-    const isOwner = req.user?.userId === url.user_id;
+    const isOwner = userId === url.user_id;
     const hasStatsToken = statsToken === url.stats_token;
 
     if (!isOwner && !hasStatsToken) {

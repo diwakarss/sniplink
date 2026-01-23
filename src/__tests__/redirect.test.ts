@@ -11,6 +11,8 @@ beforeAll(() => {
 // Clean up test data after all tests
 afterAll(() => {
   const db = getDb();
+  // Clean up clicks first (foreign key constraint)
+  db.prepare('DELETE FROM clicks WHERE url_id IN (SELECT id FROM urls WHERE original_url LIKE ?)').run('https://redirect-test.example.com%');
   db.prepare('DELETE FROM urls WHERE original_url LIKE ?').run('https://redirect-test.example.com%');
 });
 
@@ -154,5 +156,147 @@ describe('GET /:code', () => {
 
     expect(redirectResponse.status).toBe(302);
     expect(redirectResponse.headers.location).toBeDefined();
+  });
+
+  test('should record click on successful redirect', async () => {
+    // Create a test URL
+    const testUrl = 'https://redirect-test.example.com/click-tracking';
+    const response = await request(app)
+      .post('/api/urls')
+      .send({ url: testUrl });
+
+    const code = response.body.shortCode;
+
+    // Visit the short URL
+    await request(app)
+      .get(`/${code}`)
+      .redirects(0);
+
+    // Query database for clicks
+    const db = getDb();
+    const urlResult = db.prepare('SELECT id FROM urls WHERE short_code = ?').get(code) as { id: string } | undefined;
+    expect(urlResult).toBeDefined();
+
+    const clicks = db.prepare('SELECT * FROM clicks WHERE url_id = ?').all(urlResult!.id);
+    expect(clicks.length).toBe(1);
+
+    const click = clicks[0] as any;
+    expect(click.url_id).toBe(urlResult!.id);
+    expect(click.clicked_at).toBeDefined();
+
+    // Verify timestamp format is valid ISO string
+    expect(click.clicked_at).toMatch(/^\d{4}-\d{2}-\d{2}/);
+  });
+
+  test('should capture IP address in click record', async () => {
+    // Create a test URL
+    const testUrl = 'https://redirect-test.example.com/ip-tracking';
+    const response = await request(app)
+      .post('/api/urls')
+      .send({ url: testUrl });
+
+    const code = response.body.shortCode;
+
+    // Visit with custom IP via X-Forwarded-For header
+    await request(app)
+      .get(`/${code}`)
+      .set('X-Forwarded-For', '192.168.1.100')
+      .redirects(0);
+
+    // Query clicks table
+    const db = getDb();
+    const urlResult = db.prepare('SELECT id FROM urls WHERE short_code = ?').get(code) as { id: string };
+    const click = db.prepare('SELECT ip_address FROM clicks WHERE url_id = ?').get(urlResult.id) as any;
+
+    expect(click.ip_address).toBe('192.168.1.100');
+  });
+
+  test('should capture user agent in click record', async () => {
+    // Create a test URL
+    const testUrl = 'https://redirect-test.example.com/ua-tracking';
+    const response = await request(app)
+      .post('/api/urls')
+      .send({ url: testUrl });
+
+    const code = response.body.shortCode;
+
+    // Visit with custom User-Agent
+    await request(app)
+      .get(`/${code}`)
+      .set('User-Agent', 'TestAgent/1.0')
+      .redirects(0);
+
+    // Query clicks table
+    const db = getDb();
+    const urlResult = db.prepare('SELECT id FROM urls WHERE short_code = ?').get(code) as { id: string };
+    const click = db.prepare('SELECT user_agent FROM clicks WHERE url_id = ?').get(urlResult.id) as any;
+
+    expect(click.user_agent).toBe('TestAgent/1.0');
+  });
+
+  test('should increment click count on multiple visits', async () => {
+    // Create a test URL
+    const testUrl = 'https://redirect-test.example.com/multiple-clicks';
+    const response = await request(app)
+      .post('/api/urls')
+      .send({ url: testUrl });
+
+    const code = response.body.shortCode;
+
+    // Visit 3 times
+    await request(app).get(`/${code}`).redirects(0);
+    await request(app).get(`/${code}`).redirects(0);
+    await request(app).get(`/${code}`).redirects(0);
+
+    // Query click count
+    const db = getDb();
+    const urlResult = db.prepare('SELECT id FROM urls WHERE short_code = ?').get(code) as { id: string };
+    const countResult = db.prepare('SELECT COUNT(*) as count FROM clicks WHERE url_id = ?').get(urlResult.id) as { count: number };
+
+    expect(countResult.count).toBe(3);
+  });
+
+  test('should not record click for invalid short code', async () => {
+    const db = getDb();
+
+    // Count clicks before request
+    const countBefore = db.prepare('SELECT COUNT(*) as count FROM clicks').get() as { count: number };
+
+    // Visit invalid code
+    await request(app).get('/invalidcode');
+
+    // Count clicks after request
+    const countAfter = db.prepare('SELECT COUNT(*) as count FROM clicks').get() as { count: number };
+
+    // No new clicks should be recorded
+    expect(countAfter.count).toBe(countBefore.count);
+  });
+
+  test('should not record click for disabled URL', async () => {
+    // Create a test URL
+    const db = getDb();
+    const disabledCode = 'dis456';
+    const id = randomUUID();
+    const statsToken = randomUUID();
+
+    db.prepare(`
+      INSERT INTO urls (id, short_code, original_url, stats_token, is_disabled, created_at)
+      VALUES (?, ?, ?, ?, 1, datetime('now'))
+    `).run(id, disabledCode, 'https://redirect-test.example.com/disabled-click', statsToken);
+
+    // Count clicks before request
+    const countBefore = db.prepare('SELECT COUNT(*) as count FROM clicks WHERE url_id = ?').get(id) as { count: number };
+
+    // Visit disabled URL
+    await request(app).get(`/${disabledCode}`);
+
+    // Count clicks after request
+    const countAfter = db.prepare('SELECT COUNT(*) as count FROM clicks WHERE url_id = ?').get(id) as { count: number };
+
+    // No new clicks should be recorded
+    expect(countAfter.count).toBe(countBefore.count);
+
+    // Clean up
+    db.prepare('DELETE FROM urls WHERE short_code = ?').run(disabledCode);
   });
 });

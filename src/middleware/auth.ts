@@ -63,3 +63,41 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   req.user = payload;
   next();
 }
+
+/**
+ * Middleware for optional authentication
+ *
+ * Extracts Bearer token if present and attaches to req.user.
+ * Unlike requireAuth, this does NOT reject on missing/invalid token.
+ *
+ * Use this for endpoints that work both authenticated and anonymous,
+ * like URL creation (ANLZ-03: authenticated URLs link to user).
+ *
+ * Usage:
+ * ```typescript
+ * router.post('/api/urls', optionalAuth, (req, res) => {
+ *   // req.user is set if authenticated, undefined if anonymous
+ *   const userId = req.user?.userId || null;
+ * });
+ * ```
+ */
+export function optionalAuth(req: Request, res: Response, next: NextFunction): void {
+  // Extract token from Authorization header
+  const authHeader = req.headers.authorization;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+
+    // Verify token
+    const payload = verifyToken(token);
+
+    if (payload) {
+      // Token is valid, attach user to request
+      req.user = payload;
+    }
+    // If token is invalid/expired, continue without user (anonymous)
+  }
+
+  // Always continue, whether authenticated or not
+  next();
+}

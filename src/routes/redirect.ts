@@ -5,6 +5,7 @@
  */
 
 import { Router, Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 import { getDb } from '../db';
 
 const router = Router();
@@ -37,16 +38,16 @@ router.get('/:code', (req: Request, res: Response) => {
     }
 
     // Query database with parameterized query (SEC-05)
-    // Only fetch needed columns for performance
+    // Fetch id for click tracking
     const db = getDb();
     const stmt = db.prepare(`
-      SELECT original_url, is_disabled, expires_at
+      SELECT id, original_url, is_disabled, expires_at
       FROM urls
       WHERE short_code = ?
     `);
 
     const result = stmt.get(code) as
-      | { original_url: string; is_disabled: number; expires_at: string | null }
+      | { id: string; original_url: string; is_disabled: number; expires_at: string | null }
       | undefined;
 
     // Handle not found
@@ -69,6 +70,26 @@ router.get('/:code', (req: Request, res: Response) => {
         res.status(410).json({ error: 'This short URL has expired' });
         return;
       }
+    }
+
+    // Record click for analytics (ANLZ-01, ANLZ-02)
+    // Extract IP address and User-Agent
+    try {
+      const clickId = randomUUID();
+      const ipAddress = req.ip || (Array.isArray(req.headers['x-forwarded-for'])
+        ? req.headers['x-forwarded-for'][0]
+        : req.headers['x-forwarded-for']?.split(',')[0]) || null;
+      const userAgent = req.headers['user-agent'] || null;
+
+      const clickStmt = db.prepare(`
+        INSERT INTO clicks (id, url_id, ip_address, user_agent)
+        VALUES (?, ?, ?, ?)
+      `);
+
+      clickStmt.run(clickId, result.id, ipAddress, userAgent);
+    } catch (clickError) {
+      // Log error but don't block redirect
+      console.error('Failed to record click:', clickError);
     }
 
     // Redirect with 302 (temporary) for analytics flexibility

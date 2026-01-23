@@ -12,6 +12,12 @@ dist/
 # Database files
 data/
 
+# Test coverage
+coverage/
+
+# Logs
+*.log
+
 # IDE
 .vscode/
 .idea/

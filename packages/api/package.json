@@ -1,5 +1,5 @@
 {
-  "name": "url-shortener-api",
+  "name": "@url-shortener/api",
   "version": "1.0.0",
   "description": "URL Shortener API with authentication and analytics",
   "main": "dist/index.js",

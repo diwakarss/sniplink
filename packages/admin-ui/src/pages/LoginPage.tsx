@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { Link2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -84,7 +85,12 @@ export function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              variant="gradient"
+              className={cn("w-full", isSubmitting && "animate-gradient-pulse")}
+              disabled={isSubmitting}
+            >
               {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
             <a

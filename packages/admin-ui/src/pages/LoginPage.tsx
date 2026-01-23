@@ -83,10 +83,16 @@ export function LoginPage() {
               />
             </div>
           </CardContent>
-          <CardFooter>
+          <CardFooter className="flex flex-col gap-4">
             <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? 'Signing in...' : 'Sign in'}
             </Button>
+            <a
+              href="/forgot-password"
+              className="text-sm text-muted-foreground hover:text-primary hover:underline"
+            >
+              Forgot password?
+            </a>
           </CardFooter>
         </form>
       </Card>

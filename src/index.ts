@@ -3,6 +3,7 @@ import { config } from './config';
 import { initDb } from './db';
 import { healthRouter } from './routes/health';
 import { urlsRouter } from './routes/urls';
+import { redirectRouter } from './routes/redirect';
 
 const app = express();
 
@@ -18,9 +19,10 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   next(err);
 });
 
-// Routes
+// Routes (order matters: specific routes before catch-all)
 app.use('/health', healthRouter);
 app.use('/api/urls', urlsRouter);
+app.use('/', redirectRouter); // Must be last - catches /:code
 
 // Start server function
 async function startServer() {

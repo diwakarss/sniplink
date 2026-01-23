@@ -5,3 +5,4 @@
  */
 
 export { validateUrl, sanitizeUrl } from './url-validator';
+export { generateShortCode, isCodeUnique, generateUniqueShortCode } from './short-code';

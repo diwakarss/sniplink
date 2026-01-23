@@ -5,6 +5,7 @@ import { healthRouter } from './routes/health';
 import { urlsRouter } from './routes/urls';
 import { authRouter } from './routes/auth';
 import { analyticsRouter } from './routes/analytics';
+import { adminRouter } from './routes/admin';
 import { redirectRouter } from './routes/redirect';
 
 const app = express();
@@ -26,6 +27,7 @@ app.use('/health', healthRouter);
 app.use('/api/urls', urlsRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/admin', adminRouter);
 app.use('/', redirectRouter); // Must be last - catches /:code
 
 // Start server function

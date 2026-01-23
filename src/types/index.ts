@@ -35,3 +35,21 @@ export interface Click {
   ip_address: string | null;
   user_agent: string | null;
 }
+
+/**
+ * Authentication request payload for login and registration
+ */
+export interface AuthRequest {
+  email: string;
+  password: string;
+}
+
+/**
+ * JWT payload structure for decoded tokens
+ */
+export interface JwtPayload {
+  userId: string;
+  email: string;
+  iat?: number;
+  exp?: number;
+}

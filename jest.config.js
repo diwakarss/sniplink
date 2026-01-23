@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
   testMatch: ['**/__tests__/**/*.test.ts'],
+  maxWorkers: 1, // Serial execution prevents rate limiter conflicts
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.test.ts',

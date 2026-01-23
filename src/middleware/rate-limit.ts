@@ -34,14 +34,14 @@ interface RateLimiterConfig {
  * Create a rate limiter middleware with specified configuration
  *
  * @param config - Rate limiter configuration
- * @returns Express middleware function
+ * @returns Express middleware function with reset method
  */
 export function createRateLimiter(config: RateLimiterConfig) {
   // In-memory storage: Map<key, RateLimitEntry>
   // Same pattern as failedAttempts in auth.ts
   const storage = new Map<string, RateLimitEntry>();
 
-  return (req: Request, res: Response, next: NextFunction): void => {
+  const middleware = (req: Request, res: Response, next: NextFunction): void => {
     // Extract rate limit key (IP, user ID, etc.)
     const key = config.keyExtractor(req);
 
@@ -95,6 +95,12 @@ export function createRateLimiter(config: RateLimiterConfig) {
     // Within limit, continue
     next();
   };
+
+  // Attach reset method for test isolation
+  // @ts-ignore - Add reset method to middleware function
+  middleware.reset = () => storage.clear();
+
+  return middleware;
 }
 
 /**
@@ -133,3 +139,16 @@ export const userRateLimiter = createRateLimiter({
     return userId ? `user:${userId}` : null;
   }
 });
+
+/**
+ * Reset all rate limiters (for testing)
+ *
+ * Clears all rate limit counters for both IP and user rate limiters.
+ * This is useful for test isolation to prevent test interference.
+ */
+export function resetRateLimiters(): void {
+  // @ts-ignore - Access reset method added to middleware
+  if (ipRateLimiter.reset) ipRateLimiter.reset();
+  // @ts-ignore - Access reset method added to middleware
+  if (userRateLimiter.reset) userRateLimiter.reset();
+}

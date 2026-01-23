@@ -2,10 +2,13 @@ import request from 'supertest';
 import { app } from '../index';
 import { initDb, getDb } from '../db';
 import { randomUUID } from 'crypto';
+import { resetRateLimiters } from '../middleware/rate-limit';
 
 // Initialize database before running tests
 beforeAll(() => {
   initDb();
+  // Reset rate limiters before tests start
+  resetRateLimiters();
 });
 
 // Clean up test data after all tests

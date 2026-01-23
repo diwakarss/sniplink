@@ -1,10 +1,16 @@
 import request from 'supertest';
 import { app } from '../index';
 import { initDb, getDb } from '../db';
+import { resetRateLimiters } from '../middleware/rate-limit';
 
 // Initialize database before running tests
 beforeAll(() => {
   initDb();
+});
+
+// Reset rate limiters before each test
+beforeEach(() => {
+  resetRateLimiters();
 });
 
 // Clean up test data after each test
@@ -145,5 +151,51 @@ describe('POST /api/urls', () => {
     expect(response.status).toBe(400);
     expect(response.body).toHaveProperty('error');
     expect(response.body.error).toContain('Invalid JSON');
+  });
+
+  test('should return 400 for blocked domain (bit.ly)', async () => {
+    const response = await request(app)
+      .post('/api/urls')
+      .send({ url: 'https://bit.ly/abc123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error');
+    expect(response.body.error).toContain('security reasons');
+  });
+
+  test('should return 400 for blocked domain subdomain (www.tinyurl.com)', async () => {
+    const response = await request(app)
+      .post('/api/urls')
+      .send({ url: 'https://www.tinyurl.com/abc123' });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error');
+    expect(response.body.error).toContain('security reasons');
+  });
+});
+
+describe('POST /api/urls - Rate Limiting', () => {
+  test('should return 429 after exceeding IP rate limit (10/min)', async () => {
+    // Make 10 requests (at limit)
+    for (let i = 0; i < 10; i++) {
+      const response = await request(app)
+        .post('/api/urls')
+        .send({ url: `https://test.example.com/url-${i}` });
+
+      expect(response.status).toBe(201);
+    }
+
+    // 11th request should be rate limited
+    const response = await request(app)
+      .post('/api/urls')
+      .send({ url: 'https://test.example.com/rate-limited' });
+
+    expect(response.status).toBe(429);
+    expect(response.body).toHaveProperty('error');
+    expect(response.body.error).toContain('Too many requests');
+    expect(response.body).toHaveProperty('retryAfter');
+    expect(response.body.retryAfter).toBeGreaterThan(0);
+    expect(response.body.retryAfter).toBeLessThanOrEqual(60); // 1 minute window
+    expect(response.headers['retry-after']).toBeDefined();
   });
 });

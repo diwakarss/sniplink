@@ -3,6 +3,12 @@
 ## What This Is
 Monorepo URL shortener service with API and admin UI packages.
 
+## NalaN Integration (Current)
+
+- Memory persistence and retrieval use `~/.nalan/memory/memory.db`.
+- Task delegation uses agents (`/nalan:spawn`, `/nalan:agents`; `/nalan:workers` is legacy alias).
+- Worktree-based agents receive dirty/untracked overlay from this repo at spawn time.
+
 ## Tech Stack
 - Node.js — Runtime
 - npm workspaces — Monorepo management
